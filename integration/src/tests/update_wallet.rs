@@ -26,9 +26,7 @@ use renegade_circuits::{
     },
 };
 use renegade_common::types::wallet::{Order, OrderIdentifier, Wallet};
-use test_helpers::{
-    contract_interaction::transfer_auth::gen_deposit_with_auth, integration_test_async,
-};
+use test_helpers::integration_test_async;
 
 use crate::{
     util::{merkle::update_wallet_opening, transactions::send_tx, WrapEyre},

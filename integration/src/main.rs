@@ -26,9 +26,7 @@ use alloy::transports::http::reqwest::Url;
 use clap::Parser;
 use contracts::erc20::ERC20Mock;
 use contracts::erc20::ERC20MockInstance;
-use ethers_signers::LocalWallet;
 use eyre::{eyre, Result};
-use rand::thread_rng;
 use renegade_common::types::wallet::{
     derivation::{
         derive_blinder_seed, derive_share_seed, derive_wallet_id, derive_wallet_keychain,
@@ -36,7 +34,6 @@ use renegade_common::types::wallet::{
     Wallet as RenegadeWallet,
 };
 use renegade_constants::Scalar;
-use renegade_util::on_chain::wallet::alloy_signer_to_ethers_wallet;
 use test_helpers::{integration_test_main, types::TestVerbosity};
 use util::transactions::call_helper;
 
@@ -125,12 +122,6 @@ impl TestArgs {
         Ok(erc20)
     }
 
-    /// Get the ethers wallet associated with the private key passed via the CLI
-    fn get_ethers_wallet(&self) -> LocalWallet {
-        let pkey = self.pkey.clone();
-        alloy_signer_to_ethers_wallet(&pkey)
-    }
-
     /// Check whether a given root is a valid historical root
     pub async fn check_root(&self, root: Scalar) -> Result<bool> {
         let root_u256 = scalar_to_u256(root);
@@ -143,13 +134,12 @@ impl TestArgs {
     ///
     /// Returns the blinder seed and the wallet
     fn build_empty_renegade_wallet(&self) -> Result<(Scalar, RenegadeWallet)> {
-        let mut rng = thread_rng();
-        let ethers_wallet = LocalWallet::new(&mut rng);
+        let signer = self.pkey.clone();
 
-        let wallet_id = derive_wallet_id(&ethers_wallet).map_err(|e| eyre!(e))?;
-        let blinder_seed = derive_blinder_seed(&ethers_wallet).map_err(|e| eyre!(e))?;
-        let share_seed = derive_share_seed(&ethers_wallet).map_err(|e| eyre!(e))?;
-        let keychain = derive_wallet_keychain(&ethers_wallet, 1).map_err(|e| eyre!(e))?;
+        let wallet_id = derive_wallet_id(&signer).map_err(|e| eyre!(e))?;
+        let blinder_seed = derive_blinder_seed(&signer).map_err(|e| eyre!(e))?;
+        let share_seed = derive_share_seed(&signer).map_err(|e| eyre!(e))?;
+        let keychain = derive_wallet_keychain(&signer, 1).map_err(|e| eyre!(e))?;
         let wallet =
             RenegadeWallet::new_empty_wallet(wallet_id, blinder_seed, share_seed, keychain);
 
@@ -181,7 +171,7 @@ impl From<CliArgs> for TestArgs {
 /// Setup a provider for tests
 fn setup_wallet(rpc_url: &str, pkey: PrivateKeySigner) -> Result<Wallet, eyre::Error> {
     let url = Url::parse(rpc_url)?;
-    let provider = ProviderBuilder::new().wallet(pkey).on_http(url);
+    let provider = ProviderBuilder::new().wallet(pkey).connect_http(url);
     Ok(DynProvider::new(provider))
 }
 
